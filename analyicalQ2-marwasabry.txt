@@ -1,0 +1,49 @@
+Q2:
+
+select * from online_retail;
+select TO_DATE(invoicedate,'MM-DD-YYYY') as D from online_retail;
+select max(TO_DATE(invoicedate,'MM-DD-YYYY')) from online_retail;
+
+select customerid ,(select max(TO_DATE(invoicedate,'MM-DD-YYYY'))  from online_retail) - max(TO_DATE(invoicedate,'MM-DD-YYYY')) over(partition by customerid) as Recency
+from online_retail;
+
+select  distinct customerid,quantity,sum(quantity*unitprice) over(partition by customerid) as monotry 
+from online_retail where customerid is not null
+order by monotry;
+
+
+select distinct customerid, count(TO_DATE(invoicedate,'MM-DD-YYYY')) over(partition by customerid) as Frequency
+from online_retail order by customerid;
+
+---for shuring
+
+select  invoicedate from online_retail where customerid='12347';
+
+
+with cte AS
+( 
+	SELECT 
+   customerid, Recency, Frequency, monotry,
+	ntile(5) over(order by Recency Desc) as R_score, 
+    ((NTILE(5) OVER( ORDER BY (Frequency))) + (NTILE(5) OVER( ORDER BY (monotry))) )/2 AS FM_Score
+	 
+	from ( select distinct customerid, count(TO_DATE(invoicedate,'MM-DD-YYYY')) over(partition by customerid) as Frequency,
+    sum(quantity*unitprice) over(partition by customerid) as monotry,
+	(select max(TO_DATE(invoicedate,'MM-DD-YYYY'))  from online_retail) - max(TO_DATE(invoicedate,'MM-DD-YYYY')) over(partition by customerid) as Recency
+      from online_retail
+	order by customerid) as Sub_Query
+	) 
+  select customerid, Recency, Frequency, monotry,r_score,fm_Score,
+case when (r_score = 5 and fm_Score in (5,4)) or (r_score = 4 and fm_score = 5) then 'Champions'
+when ( r_score in(5,4) and fm_Score = 2) or (r_score in (3,4) and fm_score = 3) then 'Potential Loyalists'
+when ( r_score= 5 and fm_Score = 3) or ( r_score = 4 and fm_score = 4) 
+or ( r_score = 3 and fm_Score in (4,5)) then 'Loyal Customers'
+when r_score = 5 and fm_Score = 1 then 'Recent Customers'
+when r_score in(4,3) and fm_Score = 1 then 'Promising'
+when ( r_score= 2 and fm_Score in(2,3)) or ( r_score= 3 and fm_Score = 2) then 'Customers Needing Attention'
+when ( r_score= 2 and fm_Score in(4,5)) or (r_score = 1 and fm_Score = 3) then 'At Risk'
+when r_score = 1 and fm_Score in (5,4) then 'Cant Lose Them'
+when r_score = 1 and fm_Score = 2 then 'Hibernating'
+when r_score = 1 and fm_Score = 1 then 'Lost'
+end as cst_segment
+from cte;

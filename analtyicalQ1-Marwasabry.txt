@@ -1,0 +1,53 @@
+select * from online_retail;
+---------
+--this query show all transuction for each cst and details el transuction de (date,quantity,unitprice,sum quantity) ,,i found one cst acroos dayes buy alot of quantity i can reach through this query each cst buys with how much 
+select invoiceno,invoicedate,cus6tomerid,quantity,unitprice,sum(quantity) over(partition by customerid order by invoicedate) cst_quantity 
+from online_retail where customerid is not null;
+----------------
+----show what cst buy,,quantity and avg coast for cst trunsuction
+
+select customerid,quantity,unitprice,avg(unitprice) over(partition by customerid,invoiceno ) avg_price
+from online_retail where customerid is not null
+order by avg_price desc;
+
+---- to show each cst buys with how much and filter the highest cst
+
+select invoiceno,invoicedate,customerid,quantity,sum(quantity*unitprice) over(partition by customerid order by invoicedate) as how_much_buy_with 
+from online_retail where customerid is not null; ---monotry
+
+
+i calculated montory and ranking to show each cstumer cost and show highst cost
+ranking:->
+
+ select customerid,invoiceno,invoicedate from (select customerid,invoiceno,invoicedate ,sum(quantity*unitprice) over(order by customerid) as  monotry, rank() over (order by customerid)as m_score
+from online_retail
+ where customerid is not null)rnk
+ where rnk.m_score=1;
+
+
+
+
+select customerid,description,quantity,min(unitprice) over(partition by customerid) minimum 
+from online_retail
+where unitprice>0; 
+
+
+
+
+
+
+select * ,first_value(description) over(partition by  customerid order by unitprice desc) as highest_price_product,
+last_value(description) over(partition by  customerid order by unitprice desc rows between unbounded preceding and unbounded following) as least_price_product
+from online_retail;
+
+
+
+
+
+
+
+
+ 
+
+
+
